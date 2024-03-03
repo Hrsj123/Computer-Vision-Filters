@@ -1,28 +1,8 @@
-import matplotlib.pyplot as plt
-from edge_filters import edge_filters
+from filters import edge_filters
 import numpy as np
-from PIL import Image
+from utils.methods import normalize
 
-def image_to_array(image_path: str) -> np.array:
-    """Return np.array 2D (grayscale) of any image"""
-    img = Image.open(image_path).convert('L')
-    img = np.array(img)
-    return img
-
-def apply_filter(filter, image, padded=False):
-    """Apply given filter to an image"""
-    l, w = len(image) - 2, len(image[0]) - 2
-    filtered_image = np.zeros((l, w), dtype=float)
-    for i in range(image.shape[0] - 2):
-        for j in range(image.shape[1] - 2):
-            filtered_image[i, j] = np.sum(image[i:i+3, j:j+3] * filter)
-    filtered_image = filtered_image / np.max(filtered_image)
-    # To create the filtered image of the same dimensions as the original image: 
-    if padded:
-        filtered_image = np.pad(filtered_image, 1, mode='constant')
-    return filtered_image
-
-def scharr_filter(img_array):
+def scharr_filter(img_array: np.ndarray):
     """Sharr filter to detect diagonal edges"""
     padded_img = np.pad(img_array, 1, mode='constant')
     filtered_x = np.zeros_like(img_array)
@@ -38,16 +18,32 @@ def scharr_filter(img_array):
     gradient = gradient.astype(np.uint8)
     return gradient
 
-def plot_image(image, filtered_images):
-    """Plot effects of multiple single filters"""
-    l = len(filtered_images)
-    plt.figure(figsize=(10, 5))
-    plt.subplot(int(f'1{l+1}1'))
-    plt.imshow(image, cmap="gray")
-    plt.title("Original Image")
-    for i, filtered_image in enumerate(filtered_images):     
-        title, filtered_image = filtered_image
-        plt.subplot(int(f'1{l+1}{i+2}'))
-        plt.imshow(filtered_image, cmap="gray")
-        plt.title(title)
-    plt.show()
+def image_downscaler(image: np.ndarray, stride: tuple=(1, 1), filter_size=3, padding_width: int=3, padding_value=0):
+    """Returns a condenced image with dimentions as (image_width-filter_size, image_height-filter_size)"""
+    assert filter_size <= image.shape[0] and filter_size <= image.shape[1]
+
+    image = np.pad(image, padding_width, mode='constant', constant_values=padding_value)
+
+    start = 1
+    seq = np.concatenate((
+        np.arange(start, filter_size), 
+        np.arange(filter_size - (1 if filter_size % 2 == 0 else 2), start - 1, -1)
+    ))
+    x, y = np.meshgrid(seq, seq)
+    
+    filter_arr: np.ndarray = normalize(x*y)
+    output_img = np.zeros((
+        image.shape[0] - len(filter_arr) + 1, 
+        image.shape[1] - len(filter_arr) + 1,
+    ))
+    for i in range(0, image.shape[0] - len(filter_arr) + 1, stride[0]): # row
+        for j in range(0, image.shape[1] - len(filter_arr) + 1, stride[1]): # each entry in row
+            img_subset = image[i:i+len(filter_arr[0]), j:j+len(filter_arr[1])]
+            output_img[i][j] = np.sum(img_subset * filter_arr)
+    
+    return normalize(output_img, new_max=255)
+
+# def gaussian_blur(image, kernel_size=(3, 3), sigma=0.5):
+#     """Applying gaussian denoising (this causes the img to blur)"""
+#     eqn = lambda x, y, sigma: (1 / (2*np.pi*sigma**2)) * np.exp(-(x**2 + y**2) / (x*sigma**2))
+    # Later!

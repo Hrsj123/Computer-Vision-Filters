@@ -1,5 +1,6 @@
-from methods import image_to_array, apply_filter, plot_image, scharr_filter
-from edge_filters import edge_filters
+from methods import plot_image, scharr_filter
+from utils.methods import image_to_array, apply_filter
+from filters import edge_filters
 
 img_path = './Images/{}'
 file_name = 'lowpoly_circle.jpg'
